@@ -1,6 +1,14 @@
 import { challenges } from '../data/challenges'
+import type { Player } from '../app'
 
-export default function ChallengesTab() {
+interface Props {
+  players: Player[]
+}
+
+export default function ChallengesTab({ players }: Props) {
+  const p1 = players.find(p => p.id === 1)
+  const p2 = players.find(p => p.id === 2)
+
   return (
     <>
       <div className="s-title">PAAR-CHALLENGES</div>
@@ -21,11 +29,11 @@ export default function ChallengesTab() {
                 <div className="fair-title">⚖️ Wie es fair wird</div>
                 <div className="fair-row">
                   <div className="fair-him">
-                    <div className="fair-label">Er</div>
+                    <div className="fair-label">{p1?.name ?? 'Er'}</div>
                     <div className="fair-val">{c.him}</div>
                   </div>
                   <div className="fair-her">
-                    <div className="fair-label">Sie</div>
+                    <div className="fair-label">{p2?.name ?? 'Sie'}</div>
                     <div className="fair-val">{c.her}</div>
                   </div>
                 </div>

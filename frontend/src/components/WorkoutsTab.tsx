@@ -24,6 +24,7 @@ interface Props {
 export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [openId, setOpenId] = useState<number | null>(null)
+  const [activeGroupLabel, setActiveGroupLabel] = useState<string | null>(null)
   const openRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -33,9 +34,26 @@ export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
       .catch(console.error)
   }, [])
 
+  const groups = workouts.reduce<{ label: string; workouts: Workout[] }[]>((acc, w) => {
+    const g = acc.find(g => g.label === w.groupLabel)
+    if (g) g.workouts.push(w)
+    else acc.push({ label: w.groupLabel, workouts: [w] })
+    return acc
+  }, [])
+
   useEffect(() => {
-    if (openWorkoutId != null) setOpenId(openWorkoutId)
-  }, [openWorkoutId])
+    if (groups.length > 0 && activeGroupLabel === null) {
+      setActiveGroupLabel(groups[0].label)
+    }
+  }, [groups.length, activeGroupLabel])
+
+  useEffect(() => {
+    if (openWorkoutId != null) {
+      setOpenId(openWorkoutId)
+      const w = workouts.find(w => w.id === openWorkoutId)
+      if (w) setActiveGroupLabel(w.groupLabel)
+    }
+  }, [openWorkoutId, workouts.length])
 
   useEffect(() => {
     if (openId != null && openRef.current) {
@@ -43,12 +61,7 @@ export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
     }
   }, [openId, workouts.length])
 
-  const groups = workouts.reduce<{ label: string; workouts: Workout[] }[]>((acc, w) => {
-    const g = acc.find(g => g.label === w.groupLabel)
-    if (g) g.workouts.push(w)
-    else acc.push({ label: w.groupLabel, workouts: [w] })
-    return acc
-  }, [])
+  const activeGroup = groups.find(g => g.label === activeGroupLabel) ?? groups[0] ?? null
 
   return (
     <>
@@ -71,44 +84,55 @@ export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
         </div>
       </div>
 
-      <button className="manage-workouts-btn" onClick={onManage}>✎ Workouts verwalten</button>
-
-      {groups.map(group => (
-        <div className="workout-group" key={group.label}>
-          <div className="group-label">{group.label}</div>
-          {group.workouts.map(w => {
-            const isOpen = openId === w.id
+      <div className="workout-level-tabs-row">
+        <div className="workout-level-tabs">
+          {groups.map(g => {
+            const label = g.label.split(' — ')[0]
             return (
-              <div
-                key={w.id}
-                ref={isOpen ? openRef : null}
-                className={`workout-card${isOpen ? ' open' : ''}`}
-                onClick={() => setOpenId(prev => prev === w.id ? null : w.id)}
+              <button
+                key={g.label}
+                className={`workout-level-btn${activeGroup?.label === g.label ? ' active' : ''}`}
+                onClick={() => setActiveGroupLabel(g.label)}
               >
-                <div className="wc-header">
-                  <div className="wc-icon">{w.icon}</div>
-                  <div className="wc-info">
-                    <div className="wc-name">{w.name}</div>
-                    <div className="wc-tags">
-                      {w.tags.map(t => <span key={t.label} className={`tag ${t.cls}`}>{t.label}</span>)}
-                    </div>
-                  </div>
-                  <div className="wc-chevron">▼</div>
-                </div>
-                <div className="wc-body" style={{ maxHeight: isOpen ? '600px' : '0' }}>
-                  <div className="wc-body-inner">
-                    <p className="wc-desc">{w.desc}</p>
-                    <ul className="wc-steps">
-                      {w.steps.map((s, i) => <li key={i}>{s}</li>)}
-                    </ul>
-                    <div className="wc-sets">{w.sets}</div>
-                  </div>
-                </div>
-              </div>
+                {label}
+              </button>
             )
           })}
         </div>
-      ))}
+        <button className="manage-workouts-btn" onClick={onManage}>✎</button>
+      </div>
+
+      {activeGroup && activeGroup.workouts.map(w => {
+        const isOpen = openId === w.id
+        return (
+          <div
+            key={w.id}
+            ref={isOpen ? openRef : null}
+            className={`workout-card${isOpen ? ' open' : ''}`}
+            onClick={() => setOpenId(prev => prev === w.id ? null : w.id)}
+          >
+            <div className="wc-header">
+              <div className="wc-icon">{w.icon}</div>
+              <div className="wc-info">
+                <div className="wc-name">{w.name}</div>
+                <div className="wc-tags">
+                  {w.tags.map(t => <span key={t.label} className={`tag ${t.cls}`}>{t.label}</span>)}
+                </div>
+              </div>
+              <div className="wc-chevron">▼</div>
+            </div>
+            <div className="wc-body" style={{ maxHeight: isOpen ? '600px' : '0' }}>
+              <div className="wc-body-inner">
+                <p className="wc-desc">{w.desc}</p>
+                <ul className="wc-steps">
+                  {w.steps.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+                <div className="wc-sets">{w.sets}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </>
   )
 }

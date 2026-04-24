@@ -36,9 +36,10 @@ const BLANK_WORKOUT: Omit<Workout, 'id'> = {
 }
 
 function WorkoutForm({
-  initial, onSave, onCancel,
+  initial, groupLabels, onSave, onCancel,
 }: {
   initial: Omit<Workout, 'id'>
+  groupLabels: string[]
   onSave: (w: Omit<Workout, 'id'>) => void
   onCancel: () => void
 }) {
@@ -71,7 +72,17 @@ function WorkoutForm({
         </select>
         <input className="log-input" style={{ maxWidth: 120 }} type="number" placeholder="Standard-Anzahl" min="1" value={form.defaultCount} onChange={e => setForm(f => ({ ...f, defaultCount: parseInt(e.target.value) || 1 }))} />
       </div>
-      <input className="log-input" placeholder="Gruppe (z.B. 🌱 Anfänger — Grundlagen aufbauen)" value={form.groupLabel} onChange={e => setForm(f => ({ ...f, groupLabel: e.target.value }))} style={{ marginBottom: 8 }} />
+      <input
+        className="log-input"
+        placeholder="Gruppe (z.B. 🌱 Anfänger — Grundlagen aufbauen)"
+        value={form.groupLabel}
+        onChange={e => setForm(f => ({ ...f, groupLabel: e.target.value }))}
+        list="edit-group-labels"
+        style={{ marginBottom: 8 }}
+      />
+      <datalist id="edit-group-labels">
+        {groupLabels.map(gl => <option key={gl} value={gl} />)}
+      </datalist>
       <div className="edit-tags-row">
         {TAG_OPTIONS.map(t => (
           <button
@@ -104,6 +115,8 @@ export default function EditWorkoutsTab({ onBack }: Props) {
 
   useEffect(() => { load() }, [])
 
+  const groupLabels = Array.from(new Set(workouts.map(w => w.groupLabel).filter(Boolean)))
+
   const saveWorkout = async (data: Omit<Workout, 'id'>, id?: number) => {
     const url = id ? `/api/workouts/${id}` : '/api/workouts'
     await fetch(url, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
@@ -128,6 +141,7 @@ export default function EditWorkoutsTab({ onBack }: Props) {
           {editingWorkout === w.id ? (
             <WorkoutForm
               initial={{ icon: w.icon, name: w.name, groupLabel: w.groupLabel, tags: w.tags, desc: w.desc, steps: w.steps, sets: w.sets, unit: w.unit, defaultCount: w.defaultCount }}
+              groupLabels={groupLabels}
               onSave={data => saveWorkout(data, w.id)}
               onCancel={() => setEditingWorkout(null)}
             />
@@ -150,6 +164,7 @@ export default function EditWorkoutsTab({ onBack }: Props) {
       {editingWorkout === 'new' ? (
         <WorkoutForm
           initial={BLANK_WORKOUT}
+          groupLabels={groupLabels}
           onSave={data => saveWorkout(data)}
           onCancel={() => setEditingWorkout(null)}
         />

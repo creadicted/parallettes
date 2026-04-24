@@ -147,7 +147,7 @@ export default function App() {
             <WorkoutsTab openWorkoutId={openWorkoutId} onManage={() => navigate('edit-workouts')} />
           </section>
           <section className={`section${route === 'challenges' ? ' active' : ''}`}>
-            <ChallengesTab />
+            <ChallengesTab players={players} />
           </section>
           <section className={`section${route === 'tracker' ? ' active' : ''}`}>
             <TrackerTab state={state} players={players} onLog={log} onReset={reset} />
