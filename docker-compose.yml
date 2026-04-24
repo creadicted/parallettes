@@ -1,0 +1,13 @@
+services:
+  parallettes:
+    build: .
+    ports:
+      - "8080:3000"
+    environment:
+      DB_PATH: /app/data/parallettes.db
+    volumes:
+      - db-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
