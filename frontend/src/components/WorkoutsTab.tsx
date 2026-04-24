@@ -52,6 +52,7 @@ export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
 
   return (
     <>
+      <div className="s-sub">Parallettes Equipment</div>
       <div className="equip-row">
         <div className="equip-card">
           <div className="equip-icon">⬜</div>
