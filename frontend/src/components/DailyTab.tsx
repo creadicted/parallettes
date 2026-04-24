@@ -1,21 +1,32 @@
 import { useEffect, useState } from 'react'
-import { actions } from '../data/actions'
+import type { Player } from '../app'
+
+interface Workout {
+  id: number
+  name: string
+  unit: string
+  defaultCount: number
+}
 
 interface DailyLog {
   id: number
   date: string
-  person: 'him' | 'her'
-  action: string
+  playerId: number
+  workoutId: number
+  workoutName: string
   count: number
   unit: string
   createdAt: string
 }
 
-type Person = 'him' | 'her'
+interface Props {
+  players: Player[]
+  onNavigate: (hash: string) => void
+}
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December']
+const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -32,18 +43,31 @@ function buildCalendarCells(year: number, month: number) {
   return cells
 }
 
-export default function DailyTab() {
+export default function DailyTab({ players, onNavigate }: Props) {
   const today = new Date()
   const todayStr = toDateStr(today)
 
+  const [subTab, setSubTab] = useState<'kalender' | 'eintragen'>('kalender')
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState(todayStr)
-  const [person, setPerson] = useState<Person>('him')
+  const [selectedPlayer, setSelectedPlayer] = useState<number>(1)
   const [logs, setLogs] = useState<DailyLog[]>([])
-  const [counts, setCounts] = useState<Record<string, number>>(
-    () => Object.fromEntries(actions.map(a => [a.name, a.defaultCount]))
-  )
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [counts, setCounts] = useState<Record<number, number>>({})
+  const [monthLogs, setMonthLogs] = useState<Record<string, number[]>>({})
+
+  useEffect(() => {
+    fetch('/api/workouts')
+      .then(r => r.json())
+      .then((data: Workout[]) => {
+        if (Array.isArray(data)) {
+          setWorkouts(data)
+          setCounts(Object.fromEntries(data.map(w => [w.id, w.defaultCount])))
+        }
+      })
+      .catch(console.error)
+  }, [])
 
   useEffect(() => {
     fetch(`/api/daily?date=${selectedDate}`)
@@ -51,6 +75,15 @@ export default function DailyTab() {
       .then((data: DailyLog[]) => setLogs(Array.isArray(data) ? data : []))
       .catch(console.error)
   }, [selectedDate])
+
+  const fetchMonthLogs = (year: number, month: number) => {
+    fetch(`/api/daily/month?year=${year}&month=${month + 1}`)
+      .then(r => r.json())
+      .then((data: Record<string, number[]>) => { if (data && typeof data === 'object') setMonthLogs(data) })
+      .catch(console.error)
+  }
+
+  useEffect(() => { fetchMonthLogs(viewYear, viewMonth) }, [viewYear, viewMonth])
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -61,120 +94,169 @@ export default function DailyTab() {
     else setViewMonth(m => m + 1)
   }
 
-  const adjustCount = (name: string, delta: number) => {
-    setCounts(prev => ({ ...prev, [name]: Math.max(1, (prev[name] ?? 1) + delta) }))
+  const adjustCount = (id: number, delta: number) => {
+    setCounts(prev => ({ ...prev, [id]: Math.max(1, (prev[id] ?? 1) + delta) }))
   }
 
-  const logAction = async (action: { name: string; unit: string }, count: number) => {
+  const logAction = async (workout: Workout, count: number) => {
     const res = await fetch('/api/daily', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: selectedDate, person, action: action.name, count, unit: action.unit }),
+      body: JSON.stringify({ date: selectedDate, playerId: selectedPlayer, workoutId: workout.id, count }),
     })
-    if (res.ok) setLogs(await res.json())
+    if (res.ok) {
+      setLogs(await res.json())
+      fetchMonthLogs(viewYear, viewMonth)
+    }
   }
 
   const removeLog = async (id: number) => {
     const res = await fetch(`/api/daily/${id}?date=${selectedDate}`, { method: 'DELETE' })
-    if (res.ok) setLogs(await res.json())
+    if (res.ok) {
+      setLogs(await res.json())
+      fetchMonthLogs(viewYear, viewMonth)
+    }
   }
 
   const cells = buildCalendarCells(viewYear, viewMonth)
-  const selectedDisplay = new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, {
+  const selectedDisplay = new Date(selectedDate + 'T00:00:00').toLocaleDateString('de-DE', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
 
   return (
     <>
-      <div className="s-title">DAILY LOG</div>
-      <p className="s-sub">Pick a date, select who is logging, then tap an exercise.</p>
+      <div className="s-title">TAGESLOG</div>
+      <p className="s-sub">Datum im Kalender wählen, dann Übungen eintragen.</p>
 
-      {/* Calendar */}
-      <div className="cal-wrap">
-        <div className="cal-header">
-          <button className="cal-nav" onClick={prevMonth}>‹</button>
-          <span className="cal-month-label">{MONTHS[viewMonth]} {viewYear}</span>
-          <button className="cal-nav" onClick={nextMonth}>›</button>
-        </div>
-        <div className="cal-grid">
-          {DAYS.map(d => <div key={d} className="cal-day-name">{d}</div>)}
-          {cells.map((day, i) => {
-            if (!day) return <div key={i} />
-            const dateStr = toDateStr(new Date(viewYear, viewMonth, day))
-            const isToday = dateStr === todayStr
-            const isSelected = dateStr === selectedDate
-            return (
-              <div
-                key={i}
-                className={`cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
-                onClick={() => setSelectedDate(toDateStr(new Date(viewYear, viewMonth, day)))}
-              >
-                {day}
-              </div>
-            )
-          })}
-        </div>
+      <div className="daily-sub-nav">
+        <button
+          className={`daily-sub-btn${subTab === 'kalender' ? ' active' : ''}`}
+          onClick={() => setSubTab('kalender')}
+        >Kalender</button>
+        <button
+          className={`daily-sub-btn${subTab === 'eintragen' ? ' active' : ''}`}
+          onClick={() => setSubTab('eintragen')}
+        >Eintragen</button>
       </div>
 
-      {/* Person toggle */}
-      <div className="person-toggle-wrap">
-        <span className="log-title" style={{ margin: 0 }}>Logging as</span>
-        <div className="person-toggle">
-          <button
-            className={`person-toggle-btn him${person === 'him' ? ' active' : ''}`}
-            onClick={() => setPerson('him')}
-          >Him</button>
-          <button
-            className={`person-toggle-btn her${person === 'her' ? ' active' : ''}`}
-            onClick={() => setPerson('her')}
-          >Her</button>
-        </div>
-      </div>
-
-      {/* Action list */}
-      <div className="log-title" style={{ marginTop: 20 }}>Log for {selectedDisplay}</div>
-      <div className="action-list">
-        {actions.map(a => (
-          <div key={a.name} className={`action-item ${person}`} onClick={() => logAction(a, counts[a.name])}>
-            <div className="action-counter" onClick={e => e.stopPropagation()}>
-              <button className="counter-btn" onClick={() => adjustCount(a.name, -1)}>−</button>
-              <span className="counter-val">{counts[a.name]}</span>
-              <button className="counter-btn" onClick={() => adjustCount(a.name, +1)}>+</button>
+      {subTab === 'kalender' && (
+        <>
+          <div className="cal-wrap">
+            <div className="cal-header">
+              <button className="cal-nav" onClick={prevMonth}>‹</button>
+              <span className="cal-month-label">{MONTHS[viewMonth]} {viewYear}</span>
+              <button className="cal-nav" onClick={nextMonth}>›</button>
             </div>
-            <span className="action-name">{a.name}</span>
-            <span className="action-unit">{a.unit}</span>
+            <div className="cal-grid">
+              {DAYS.map(d => <div key={d} className="cal-day-name">{d}</div>)}
+              {cells.map((day, i) => {
+                if (!day) return <div key={i} />
+                const dateStr = toDateStr(new Date(viewYear, viewMonth, day))
+                const isToday = dateStr === todayStr
+                const isSelected = dateStr === selectedDate
+                const dotsForDay = monthLogs[dateStr] ?? []
+                return (
+                  <div
+                    key={i}
+                    className={`cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
+                    onClick={() => setSelectedDate(toDateStr(new Date(viewYear, viewMonth, day)))}
+                  >
+                    <span>{day}</span>
+                    {dotsForDay.length > 0 && (
+                      <div className="cal-dots">
+                        {dotsForDay.map(pid => {
+                          const p = players.find(p => p.id === pid)
+                          return p ? <span key={pid} className="cal-dot" style={{ background: p.color }} /> : null
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        ))}
-      </div>
 
-      {/* Daily log list */}
-      <div className="log-title" style={{ marginTop: 28 }}>
-        {logs.length > 0 ? `${logs.length} entr${logs.length === 1 ? 'y' : 'ies'} logged` : 'Logged'}
-      </div>
-      {logs.length === 0 ? (
-        <div className="empty-state">
-          <span className="emoji">📋</span>
-          Nothing logged yet — tap an exercise above.
-        </div>
-      ) : (
-        <ul className="history-list">
-          {logs.map(l => (
-            <li key={l.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className={`person-badge ${l.person}`}>{l.person === 'him' ? 'Him' : 'Her'}</span>
-                <div>
-                  <div className="hist-name">{l.action}</div>
-                  <div className="hist-detail">{l.count} {l.unit}</div>
+          <div className="log-title" style={{ marginTop: 24 }}>
+            {logs.length > 0 ? `${logs.length} Eintr${logs.length === 1 ? 'ag' : 'äge'} — ` : 'Einträge — '}{selectedDisplay}
+          </div>
+          {logs.length === 0 ? (
+            <div className="empty-state">
+              <span className="emoji">📋</span>
+              Noch nichts eingetragen — wechsle zum Eintragen-Tab.
+            </div>
+          ) : (
+            <ul className="history-list">
+              {logs.map(l => {
+                const lp = players.find(p => p.id === l.playerId)
+                return (
+                  <li key={l.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span
+                        className={`person-badge${l.playerId === 1 ? ' him' : ' her'}`}
+                        style={lp ? { background: `${lp.color}26`, color: lp.color } : {}}
+                      >
+                        {lp?.initials ?? String(l.playerId)}
+                      </span>
+                      <div>
+                        <div className="hist-name">{l.workoutName}</div>
+                        <div className="hist-detail">{l.count} {l.unit}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeLog(l.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}
+                      aria-label="löschen"
+                    >×</button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </>
+      )}
+
+      {subTab === 'eintragen' && (
+        <>
+          <div className="person-toggle-wrap" style={{ marginTop: 0 }}>
+            <span className="log-title" style={{ margin: 0 }}>Eintragen als</span>
+            <div className="person-toggle">
+              {players.map(p => (
+                <button
+                  key={p.id}
+                  className={`person-toggle-btn${p.id === 1 ? ' him' : ' her'}${selectedPlayer === p.id ? ' active' : ''}`}
+                  style={selectedPlayer === p.id ? { background: p.color, color: '#000' } : {}}
+                  onClick={() => setSelectedPlayer(p.id)}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="log-title" style={{ marginTop: 16 }}>Eintragen für {selectedDisplay}</div>
+          <div className="action-list">
+            {workouts.map(w => (
+              <div
+                key={w.id}
+                className={`action-item${selectedPlayer === 1 ? ' him' : ' her'}`}
+                onClick={() => logAction(w, counts[w.id] ?? w.defaultCount)}
+              >
+                <div className="action-counter" onClick={e => e.stopPropagation()}>
+                  <button className="counter-btn" onClick={() => adjustCount(w.id, -1)}>−</button>
+                  <span className="counter-val">{counts[w.id] ?? w.defaultCount}</span>
+                  <button className="counter-btn" onClick={() => adjustCount(w.id, +1)}>+</button>
                 </div>
+                <span className="action-name">{w.name}</span>
+                <span className="action-unit">{w.unit}</span>
+                <button
+                  className="action-info-btn"
+                  onClick={e => { e.stopPropagation(); onNavigate(`workouts?workout=${w.id}`) }}
+                  title="Workout-Beschreibung anzeigen"
+                >ⓘ</button>
               </div>
-              <button
-                onClick={() => removeLog(l.id)}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 18 }}
-                aria-label="remove"
-              >×</button>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        </>
       )}
     </>
   )

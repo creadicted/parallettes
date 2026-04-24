@@ -36,7 +36,7 @@ func main() {
 	defer database.Close()
 
 	svc := service.New(database)
-	h := handler.New(svc)
+	h := handler.New(svc, dbPath)
 
 	staticSub, err := fs.Sub(staticFiles, "static")
 	if err != nil {
@@ -44,12 +44,31 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/state", h.GetState)
-	mux.HandleFunc("POST /api/log", h.LogResult)
-	mux.HandleFunc("DELETE /api/state", h.ResetState)
+
+	// Players
+	mux.HandleFunc("GET /api/players", h.GetPlayers)
+	mux.HandleFunc("PUT /api/players/{id}", h.UpdatePlayer)
+
+	// Workouts
+	mux.HandleFunc("GET /api/workouts", h.GetWorkouts)
+	mux.HandleFunc("POST /api/workouts", h.CreateWorkout)
+	mux.HandleFunc("PUT /api/workouts/{id}", h.UpdateWorkout)
+	mux.HandleFunc("DELETE /api/workouts/{id}", h.DeleteWorkout)
+
+	// Daily logs (month before date to avoid routing ambiguity)
+	mux.HandleFunc("GET /api/daily/month", h.GetMonthLogs)
 	mux.HandleFunc("GET /api/daily", h.GetDailyLogs)
 	mux.HandleFunc("POST /api/daily", h.AddDailyLog)
 	mux.HandleFunc("DELETE /api/daily/{id}", h.DeleteDailyLog)
+
+	// State / challenges
+	mux.HandleFunc("GET /api/state", h.GetState)
+	mux.HandleFunc("POST /api/log", h.LogResult)
+	mux.HandleFunc("DELETE /api/state", h.ResetState)
+
+	// DB export
+	mux.HandleFunc("GET /api/db/export", h.ExportDB)
+
 	mux.Handle("/", http.FileServer(http.FS(staticSub)))
 
 	log.Printf("listening on :%s", port)
@@ -61,7 +80,7 @@ func main() {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
