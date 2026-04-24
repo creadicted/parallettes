@@ -114,9 +114,9 @@ export default function App() {
     <>
       <div className="hero">
         <button className="gear-btn" onClick={() => navigate('settings')} aria-label="Settings">⚙</button>
-        <div className="hero-label">⚡ Partner Fitness</div>
+        <div className="hero-label">⚡ Partner</div>
         <h1>PARALLETTES<br />CHALLENGE</h1>
-        <p className="hero-sub">Workouts, faire Paar-Challenges &amp; ein Punktestand — gemacht für zwei unterschiedliche Fitnesslevel.</p>
+        <p className="hero-sub">Workouts, Paar-Challenges &amp; ein Punktestand — gemacht für zwei unterschiedliche Fitnesslevel.</p>
       </div>
 
       {isMainRoute && (
@@ -163,8 +163,7 @@ export default function App() {
 
       {isMainRoute && (
         <div className="footer-note">
-          Gemacht für zwei 💛 · Alle Challenges werten % Verbesserung vom persönlichen Ausgangswert —<br />
-          damit unterschiedliche Fitnesslevel fair verglichen werden.
+          Gemacht für zwei 💛
         </div>
       )}
     </>
