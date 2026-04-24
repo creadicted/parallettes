@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-backend dev-frontend build docker-up docker-down
+.PHONY: help install dev dev-backend dev-frontend build docker-up docker-down purge
 
 help:
 	@echo ""
@@ -10,6 +10,7 @@ help:
 	@echo "  make build         Build frontend and embed into backend/static"
 	@echo "  make docker-up     Build image and start with Docker Compose → :8080"
 	@echo "  make docker-down   Stop Docker Compose"
+	@echo "  make purge         Delete the database; next backend start reseeds it"
 	@echo ""
 
 install:
@@ -34,3 +35,7 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+purge:
+	rm -f backend/data/parallettes.db
+	@echo "Database deleted. Run 'make dev-backend' to reseed."
