@@ -2,6 +2,8 @@
 
 A workout tracker for two people doing parallettes exercises together. Challenges are scored on **relative improvement** — your personal best is your baseline, so different fitness levels stay competitive.
 
+![Screenshot](docs/screenshot.png)
+
 ## Stack
 
 - **Backend** — Go (`net/http`, `database/sql`, `modernc.org/sqlite`)
