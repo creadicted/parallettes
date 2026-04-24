@@ -594,17 +594,16 @@ body {
 .back-btn:hover { color: var(--text); }
 
 /* WORKOUT LEVEL TABS */
-.workout-level-tabs-row {
+.manage-workouts-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  justify-content: flex-end;
+  margin-bottom: 10px;
 }
 .workout-level-tabs {
   display: flex;
   gap: 6px;
-  flex: 1;
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 .workout-level-btn {
   background: var(--surface);
@@ -635,10 +634,9 @@ body {
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 500;
-  padding: 7px 10px;
+  padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
-  flex-shrink: 0;
   transition: all 0.2s;
 }
 .manage-workouts-btn:hover { color: var(--text); border-color: #555; }

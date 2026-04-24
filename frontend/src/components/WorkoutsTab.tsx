@@ -84,22 +84,23 @@ export default function WorkoutsTab({ openWorkoutId, onManage }: Props) {
         </div>
       </div>
 
-      <div className="workout-level-tabs-row">
-        <div className="workout-level-tabs">
-          {groups.map(g => {
-            const label = g.label.split(' — ')[0]
-            return (
-              <button
-                key={g.label}
-                className={`workout-level-btn${activeGroup?.label === g.label ? ' active' : ''}`}
-                onClick={() => setActiveGroupLabel(g.label)}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-        <button className="manage-workouts-btn" onClick={onManage}>✎</button>
+      <div className="manage-workouts-row">
+        <button className="manage-workouts-btn" onClick={onManage}>✎ Workouts verwalten</button>
+      </div>
+
+      <div className="workout-level-tabs">
+        {groups.map(g => {
+          const label = g.label.split(' — ')[0]
+          return (
+            <button
+              key={g.label}
+              className={`workout-level-btn${activeGroup?.label === g.label ? ' active' : ''}`}
+              onClick={() => setActiveGroupLabel(g.label)}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {activeGroup && activeGroup.workouts.map(w => {

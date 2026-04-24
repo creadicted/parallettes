@@ -16,7 +16,7 @@ const SWATCHES = [
 type Fields = { name: string; color: string; initials: string }
 
 export default function SettingsTab({ players, onPlayersChange, onBack }: Props) {
-  const [saving, setSaving] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
   const [fields, setFields] = useState<Record<number, Fields>>({})
 
   useEffect(() => {
@@ -29,19 +29,23 @@ export default function SettingsTab({ players, onPlayersChange, onBack }: Props)
     setFields(prev => ({ ...prev, [id]: { ...prev[id], [key]: value } }))
   }
 
-  const save = async (id: number) => {
-    const f = fields[id]
-    if (!f) return
-    setSaving(id)
+  const saveAll = async () => {
+    setSaving(true)
     try {
-      await fetch(`/api/players/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(f),
-      })
+      await Promise.all(
+        players.map(p => {
+          const f = fields[p.id]
+          if (!f) return Promise.resolve()
+          return fetch(`/api/players/${p.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(f),
+          })
+        })
+      )
       onPlayersChange()
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
   }
 
@@ -102,19 +106,19 @@ export default function SettingsTab({ players, onPlayersChange, onBack }: Props)
                   ))}
                 </div>
               </div>
-
-              <button
-                className="log-btn"
-                style={{ marginTop: 16, width: '100%' }}
-                onClick={() => save(p.id)}
-                disabled={saving === p.id}
-              >
-                {saving === p.id ? 'Wird gespeichert…' : 'Speichern'}
-              </button>
             </div>
           )
         })}
       </div>
+
+      <button
+        className="log-btn"
+        style={{ width: '100%', marginBottom: 24 }}
+        onClick={saveAll}
+        disabled={saving}
+      >
+        {saving ? 'Wird gespeichert…' : 'Speichern'}
+      </button>
 
       <div className="settings-section">
         <div className="settings-section-title">Daten</div>
