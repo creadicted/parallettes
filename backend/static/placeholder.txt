@@ -1,3 +1,0 @@
-This file ensures backend/static exists for go:embed during tests and CI checkouts.
-Generated frontend assets overwrite this directory in image builds.
-

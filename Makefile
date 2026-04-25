@@ -11,7 +11,7 @@ help:
 	@echo "  make fmt           Format Go source files"
 	@echo "  make lint          Run go vet on the backend"
 	@echo "  make test          Run backend tests"
-	@echo "  make docker-up     Build image and start with Docker Compose → :8080"
+	@echo "  make docker-up     Build image and start with Docker Compose (fallback to prebuilt image) → :8080"
 	@echo "  make docker-down   Stop Docker Compose"
 	@echo "  make purge         Delete the database; next backend start reseeds it"
 	@echo ""
@@ -34,7 +34,7 @@ build:
 	cp -r frontend/dist backend/static
 
 docker-up:
-	docker compose up --build
+	docker compose up --build || (echo "Local build failed, falling back to ghcr.io/creadicted/parallettes:latest" && docker compose pull parallettes && docker compose up --no-build)
 
 docker-down:
 	docker compose down

@@ -1,9 +1,11 @@
 services:
   parallettes:
+    image: ghcr.io/creadicted/parallettes:latest
     build: .
     ports:
       - "8080:3000"
     environment:
+      PORT: "3000"
       DB_PATH: /app/data/parallettes.db
     volumes:
       - db-data:/app/data
