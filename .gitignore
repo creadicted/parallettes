@@ -159,4 +159,5 @@ sketch
 .idea
 frontend/node_modules
 frontend/dist
-backend/static
+backend/static/*
+!backend/static/placeholder.txt
