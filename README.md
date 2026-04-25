@@ -22,7 +22,7 @@ To pull a pre-built image instead of building locally:
 
 ```bash
 # replace <user> with the GitHub username hosting the repo
-docker pull ghcr.io/<user>/parallettes:latest
+docker pull ghcr.io/creadicted/parallettes:latest
 ```
 
 ## Running on NixOS
@@ -31,7 +31,7 @@ Add to your NixOS configuration:
 
 ```nix
 virtualisation.oci-containers.containers.parallettes = {
-  image = "ghcr.io/<user>/parallettes:latest";
+  image = "ghcr.io/creadicted/parallettes:latest";
   ports = [ "8080:3000" ];
   environment.DB_PATH = "/data/parallettes.db";
   volumes = [ "parallettes-data:/data" ];
