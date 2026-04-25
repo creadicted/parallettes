@@ -40,7 +40,7 @@ func (d *DB) Close() error {
 	d.conn.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
 	return d.conn.Close()
 }
-func (d *DB) Path() string  { return d.path }
+func (d *DB) Path() string { return d.path }
 
 func (d *DB) migrate() error {
 	stmts := []string{
@@ -170,7 +170,7 @@ func (d *DB) seedData() error {
 			Desc:  "Liegestütze auf Parallettes ermöglichen eine tiefere Bewegungsamplitude als auf dem Boden und bauen Brust, Schultern und Trizeps effektiver auf — auch bei wenigen Wiederholungen.",
 			Steps: []string{"Beide kurzen Stangen schulterbreit aufstellen", "Stangen greifen, Arme gestreckt, Körper in Plankenposition", "Brust unter Stangenebene absenken (das ist der Bonus-Tiefgang!)", "Vollständig hochdrücken, Schultern nach unten ziehen", "Core anspannen — Hüfte nicht durchhängen lassen"},
 			Sets:  "3 Sätze · 5–15 Wdh. · 90s Pause",
-			Unit: "reps", DefaultCount: 10,
+			Unit:  "reps", DefaultCount: 10,
 		},
 		{
 			Icon: "🪑", Name: "Support Hold", GroupLabel: beginner,
@@ -178,7 +178,7 @@ func (d *DB) seedData() error {
 			Desc:  "Die Grundlage aller Parallette-Übungen. Den Körper vom Boden abzuheben trainiert gleichzeitig Handgelenk-, Schulter- und Core-Stabilität.",
 			Steps: []string{"Stangen greifen und Körper nach oben drücken", "Arme vollständig gestreckt, Schultern aktiv nach unten", "Füße können anfangs leicht aufliegen — aufbauen bis zum vollständigen Hold", "So lange halten, wie die Form stimmt"},
 			Sets:  "3–5 Holds · 10–30 Sekunden · 60s Pause",
-			Unit: "sec", DefaultCount: 20,
+			Unit:  "sec", DefaultCount: 20,
 		},
 		{
 			Icon: "🦵", Name: "Tuck Hold", GroupLabel: beginner,
@@ -186,7 +186,7 @@ func (d *DB) seedData() error {
 			Desc:  "Das Tor zum L-Sit. Im Support Hold die Knie zur Brust ziehen. Trainiert gleichzeitig Hüftbeuger, Core und Schulter-Stabilität.",
 			Steps: []string{"Im Support Hold auf den kurzen Stangen beginnen", "Knie zur Brust ziehen (Tuck-Position)", "Knie versuchen leicht über Stangenebene zu halten", "Position halten, gleichmäßig atmen"},
 			Sets:  "3–5 Holds · 5–20 Sekunden · 90s Pause",
-			Unit: "sec", DefaultCount: 15,
+			Unit:  "sec", DefaultCount: 15,
 		},
 		{
 			Icon: "🔽", Name: "Parallette Dips", GroupLabel: beginner,
@@ -194,55 +194,55 @@ func (d *DB) seedData() error {
 			Desc:  "Die langen Stangen für Dips nutzen. Trizeps, Brust und vordere Schulter — die perfekte Ergänzung zu Liegestützen. Füße können anfangs auf dem Boden bleiben.",
 			Steps: []string{"Zwischen den langen Stangen sitzen, Hände neben den Hüften", "In Support-Position drücken, Beine gestreckt oder gebeugt zur Unterstützung", "Langsam absenken bis Oberarme parallel zum Boden", "Vollständig hochdrücken — Ellbogen nicht aggressiv sperren"},
 			Sets:  "3 Sätze · 5–12 Wdh. · 90s Pause",
-			Unit: "reps", DefaultCount: 10,
+			Unit:  "reps", DefaultCount: 10,
 		},
 		{
 			Icon: "📐", Name: "L-Sit Hold", GroupLabel: intermediate,
 			Tags:  []model.WorkoutTag{low, inter},
 			Desc:  "Beine gestreckt, parallel zum Boden, im Support Hold. Eine der lohnendsten Calisthenics-Übungen — sieht einfach aus, erfordert aber enorme Core- und Hüftbeuger-Kraft.",
 			Steps: []string{"Vom Tuck Hold aus ein Bein strecken, dann beide", "Zehen strecken, Beine zusammen und parallel zum Boden", "Schultern leicht vor den Händen hilft", "Zeit aufbauen — auch 3 Sekunden zählen"},
-			Sets: "4–6 Holds · 5–20 Sekunden · 2 Min Pause",
-			Unit: "sec", DefaultCount: 10,
+			Sets:  "4–6 Holds · 5–20 Sekunden · 2 Min Pause",
+			Unit:  "sec", DefaultCount: 10,
 		},
 		{
 			Icon: "🏔️", Name: "Pike Push-Ups", GroupLabel: intermediate,
 			Tags:  []model.WorkoutTag{highLong, inter},
 			Desc:  "Hände auf der hohen Stange, Füße auf dem Boden, Hüfte hoch — belastet die Schultern stark. Eine Vorstufe zum Handstand-Liegestütz.",
 			Steps: []string{"Hände auf hohe Stange legen, Füße einlaufen bis Hüfte hoch ist", "Körper bildet ein umgekehrtes V", "Ellbogen beugen und Kopf zur Stange absenken", "Hochdrücken — Ellbogen nicht zu weit ausfächern"},
-			Sets: "3 Sätze · 6–12 Wdh. · 90s Pause",
-			Unit: "reps", DefaultCount: 8,
+			Sets:  "3 Sätze · 6–12 Wdh. · 90s Pause",
+			Unit:  "reps", DefaultCount: 8,
 		},
 		{
 			Icon: "🦅", Name: "Planche Lean", GroupLabel: intermediate,
 			Tags:  []model.WorkoutTag{low, inter},
 			Desc:  "In Liegestütz-Position auf den Parallettes die Schultern über die Hände nach vorne lehnen. Baut die Streckarm-Kraft auf, die für fortgeschrittene Planche-Arbeit nötig ist.",
 			Steps: []string{"In Liegestütz-Position auf kurzen Stangen beginnen, Arme gestreckt", "Schultern 1–4 cm über die Stangen nach vorne lehnen", "Körper steif halten — Gesäß und Core fest anspannen", "Halten, dann zurück zur Neutralposition"},
-			Sets: "4 Holds · 5–15 Sekunden · 2 Min Pause",
-			Unit: "sec", DefaultCount: 10,
+			Sets:  "4 Holds · 5–15 Sekunden · 2 Min Pause",
+			Unit:  "sec", DefaultCount: 10,
 		},
 		{
 			Icon: "🔁", Name: "Parallette Pass-Throughs", GroupLabel: intermediate,
 			Tags:  []model.WorkoutTag{lowLong, inter},
 			Desc:  "Eine fließende Bewegung — Support Hold, Beine durch die Stangen schwingen, zurück. Entwickelt gleichzeitig Hüftmobilität, Schulter-Stabilität und Koordination.",
 			Steps: []string{"In vorderer Stützposition (Liegestütz) auf langen Stangen beginnen", "Beine durch die Stangen in hintere Stützposition schwingen (Blick nach oben)", "Kurz halten, dann zurück in vordere Stützposition schwingen", "Schwung kontrollieren — nicht einfach durchfallen lassen"},
-			Sets: "3 Sätze · 6–10 Pass-Throughs · 90s Pause",
-			Unit: "reps", DefaultCount: 6,
+			Sets:  "3 Sätze · 6–10 Pass-Throughs · 90s Pause",
+			Unit:  "reps", DefaultCount: 6,
 		},
 		{
 			Icon: "🤸", Name: "Handstand Hold", GroupLabel: advanced,
 			Tags:  []model.WorkoutTag{low, adv},
 			Desc:  "Parallettes für einen handgelenkschonenden Handstand nutzen. Der neutrale Griff reduziert die Handgelenk-Belastung deutlich und ermöglicht längere Zeit auf dem Kopf.",
 			Steps: []string{"Kurze Stangen nahe an die Wand stellen", "In den Handstand hochkicken, Fersen an die Wand", "Fest durch die Stangen drücken, Schultern aktiv", "Wandkontakt schrittweise reduzieren"},
-			Sets: "4–6 Holds · 10–30 Sekunden · 2 Min Pause",
-			Unit: "sec", DefaultCount: 15,
+			Sets:  "4–6 Holds · 10–30 Sekunden · 2 Min Pause",
+			Unit:  "sec", DefaultCount: 15,
 		},
 		{
 			Icon: "💀", Name: "Tuck Planche Hold", GroupLabel: advanced,
 			Tags:  []model.WorkoutTag{low, adv},
 			Desc:  "Das Tor zur vollen Planche. Körper parallel zum Boden, nur von gestreckten Armen gehalten. Erfordert starke Schulterprotaktion und Streckarm-Kraft.",
 			Steps: []string{"In Planche-Lean-Position beginnen", "Gewicht langsam nach vorne verlagern bis Zehen abheben", "Knie zur Brust ziehen, Hüfte über den Händen", "Position halten — auch 2 Sekunden sind ein Erfolg"},
-			Sets: "4–6 Holds · 2–10 Sekunden · 3 Min Pause",
-			Unit: "sec", DefaultCount: 5,
+			Sets:  "4–6 Holds · 2–10 Sekunden · 3 Min Pause",
+			Unit:  "sec", DefaultCount: 5,
 		},
 	}
 
@@ -547,38 +547,38 @@ func (d *DB) seedChallenges() error {
 	seeds := []seed{
 		{
 			Title: "Liegestütz-Prozent-Rennen", Type: "improvement", TypeLabel: "% Verbesserung",
-			Desc:            "Beide testen ihre maximalen Liegestütz-Wiederholungen an Tag 1 (Ausgangswert). Nach 4 Wochen Training erneut testen. Wer sich prozentual am meisten verbessert, gewinnt.",
-			HimNote:         "Ausgangswert ca. ~30 Wdh.", HerNote: "Ausgangswert ca. ~1–3 Wdh.",
-			WinRule:         "Gewinner = höchste % Verbesserung. (z.B. 1→4 Wdh. = +300% schlägt 30→38 = +27%)",
-			Unit:            "Wdh.", DurationDays: 28, LinkedWorkoutName: "Elevated Push-Ups",
+			Desc:    "Beide testen ihre maximalen Liegestütz-Wiederholungen an Tag 1 (Ausgangswert). Nach 4 Wochen Training erneut testen. Wer sich prozentual am meisten verbessert, gewinnt.",
+			HimNote: "Ausgangswert ca. ~30 Wdh.", HerNote: "Ausgangswert ca. ~1–3 Wdh.",
+			WinRule: "Gewinner = höchste % Verbesserung. (z.B. 1→4 Wdh. = +300% schlägt 30→38 = +27%)",
+			Unit:    "Wdh.", DurationDays: 28, LinkedWorkoutName: "Elevated Push-Ups",
 		},
 		{
 			Title: "L-Sit Überlebenskampf", Type: "endurance", TypeLabel: "Ausdauer",
-			Desc:            "Maximalen L-Sit-Hold messen (oder Tuck Hold für Anfänger). Haltezeit wöchentlich mit dem eigenen Rekord vergleichen. Wöchentlicher Gewinner erhält den Punkt.",
-			HimNote:         "Voller L-Sit oder Planche-Lean-Version", HerNote: "Tuck Hold ist gültig — vollständig vergleichbar",
-			WinRule:         "Jede Woche: Wer den eigenen Rekord prozentual mehr übertrifft, gewinnt den Wochenpunkt.",
-			Unit:            "Sekunden", DurationDays: 28, LinkedWorkoutName: "L-Sit Hold",
+			Desc:    "Maximalen L-Sit-Hold messen (oder Tuck Hold für Anfänger). Haltezeit wöchentlich mit dem eigenen Rekord vergleichen. Wöchentlicher Gewinner erhält den Punkt.",
+			HimNote: "Voller L-Sit oder Planche-Lean-Version", HerNote: "Tuck Hold ist gültig — vollständig vergleichbar",
+			WinRule: "Jede Woche: Wer den eigenen Rekord prozentual mehr übertrifft, gewinnt den Wochenpunkt.",
+			Unit:    "Sekunden", DurationDays: 28, LinkedWorkoutName: "L-Sit Hold",
 		},
 		{
 			Title: "30-Tage Liegestütz-Kalender", Type: "skill", TypeLabel: "Konstanz",
-			Desc:            "Jeden Tag für 30 Tage eine bestimmte Anzahl Liegestütze absolvieren (an jede Person angepasst). Fertige Tage im gemeinsamen Kalender markieren. Wer mehr Tage schafft, gewinnt.",
-			HimNote:         "Ziel: 10 Wdh./Tag, jede Woche um 1 steigern", HerNote: "Ziel: 2 Wdh./Tag, jede Woche um 1 steigern",
-			WinRule:         "Wer nach 30 Tagen mehr Tage abgeschlossen hat, gewinnt. Gleichstand = Bonus-Runde.",
-			Unit:            "Abgeschlossene Tage", DurationDays: 30, LinkedWorkoutName: "Elevated Push-Ups",
+			Desc:    "Jeden Tag für 30 Tage eine bestimmte Anzahl Liegestütze absolvieren (an jede Person angepasst). Fertige Tage im gemeinsamen Kalender markieren. Wer mehr Tage schafft, gewinnt.",
+			HimNote: "Ziel: 10 Wdh./Tag, jede Woche um 1 steigern", HerNote: "Ziel: 2 Wdh./Tag, jede Woche um 1 steigern",
+			WinRule: "Wer nach 30 Tagen mehr Tage abgeschlossen hat, gewinnt. Gleichstand = Bonus-Runde.",
+			Unit:    "Abgeschlossene Tage", DurationDays: 30, LinkedWorkoutName: "Elevated Push-Ups",
 		},
 		{
 			Title: "Dip-Duell", Type: "improvement", TypeLabel: "% Verbesserung",
-			Desc:            "Maximale Dips testen (mit Fußunterstützung für Anfänger erlaubt). Ausgangswert aufzeichnen. Nach 3 Wochen erneut testen.",
-			HimNote:         "Volle hängende Dips", HerNote: "Fußgestützte Dips an der niedrigen Stange — beide werden gezählt",
-			WinRule:         "Höchste % Verbesserung vom persönlichen Ausgangswert gewinnt.",
-			Unit:            "Wdh.", DurationDays: 21, LinkedWorkoutName: "Parallette Dips",
+			Desc:    "Maximale Dips testen (mit Fußunterstützung für Anfänger erlaubt). Ausgangswert aufzeichnen. Nach 3 Wochen erneut testen.",
+			HimNote: "Volle hängende Dips", HerNote: "Fußgestützte Dips an der niedrigen Stange — beide werden gezählt",
+			WinRule: "Höchste % Verbesserung vom persönlichen Ausgangswert gewinnt.",
+			Unit:    "Wdh.", DurationDays: 21, LinkedWorkoutName: "Parallette Dips",
 		},
 		{
 			Title: "Der Planken-Showdown", Type: "endurance", TypeLabel: "Ausdauer",
-			Desc:            "Maximaler Planken-Hold — aber auf den Parallettes (erhöht). Der neutrale Griff macht es schwerer als auf dem Boden. Beide halten gleichzeitig für extra Spannung.",
-			HimNote:         "Standard Parallette-Planke", HerNote: "Gleich — diese Übung ist von Natur aus fairer",
-			WinRule:         "Längste Haltezeit gewinnt. Bei weniger als 5 Sekunden Unterschied: Unentschieden, beide erhalten Punkte.",
-			Unit:            "Sekunden", DurationDays: 7, LinkedWorkoutName: "Support Hold",
+			Desc:    "Maximaler Planken-Hold — aber auf den Parallettes (erhöht). Der neutrale Griff macht es schwerer als auf dem Boden. Beide halten gleichzeitig für extra Spannung.",
+			HimNote: "Standard Parallette-Planke", HerNote: "Gleich — diese Übung ist von Natur aus fairer",
+			WinRule: "Längste Haltezeit gewinnt. Bei weniger als 5 Sekunden Unterschied: Unentschieden, beide erhalten Punkte.",
+			Unit:    "Sekunden", DurationDays: 7, LinkedWorkoutName: "Support Hold",
 		},
 		{
 			Title: "Speed-Circuit-Sprint", Type: "speed", TypeLabel: "Schnelligkeit",

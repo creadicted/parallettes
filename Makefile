@@ -1,13 +1,16 @@
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-backend dev-frontend build docker-up docker-down purge
+.PHONY: help install dev dev-backend dev-frontend build docker-up docker-down purge fmt lint test
 
 help:
 	@echo ""
 	@echo "  make install       Install frontend dependencies"
 	@echo "  make dev           Run backend + frontend concurrently (dev mode)"
-	@echo "  make dev-backend   Run Go backend only  → :3000"
+	@echo "  make dev-backend   Run Go backend only  → :8787"
 	@echo "  make dev-frontend  Run Vite frontend only → :5173"
 	@echo "  make build         Build frontend and embed into backend/static"
+	@echo "  make fmt           Format Go source files"
+	@echo "  make lint          Run go vet on the backend"
+	@echo "  make test          Run backend tests"
 	@echo "  make docker-up     Build image and start with Docker Compose → :8080"
 	@echo "  make docker-down   Stop Docker Compose"
 	@echo "  make purge         Delete the database; next backend start reseeds it"
@@ -35,6 +38,15 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+fmt:
+	cd backend && go fmt ./...
+
+lint:
+	cd backend && go vet ./...
+
+test:
+	cd backend && go test ./...
 
 purge:
 	rm -f backend/data/parallettes.db
