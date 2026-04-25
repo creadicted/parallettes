@@ -4,25 +4,11 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/konradk/parallettes/internal/db"
 	"github.com/konradk/parallettes/internal/model"
 )
-
-var challenges = []struct {
-	ID    int
-	Title string
-	Unit  string
-}{
-	{1, "Push-Up Percentage Race", "reps"},
-	{2, "L-Sit Survival", "seconds"},
-	{3, "30-Day Push-Up Calendar", "days completed"},
-	{4, "Dip-Off", "reps"},
-	{5, "The Plank-Off", "seconds"},
-	{6, "Speed Circuit Sprint", "seconds (lower = better)"},
-	{7, "Weekly Skill Unlock", "skill achieved (yes/no)"},
-	{8, "Couple's EMOM", "rounds survived"},
-}
 
 type Service struct {
 	db *db.DB
@@ -61,14 +47,11 @@ func (s *Service) GetState() (model.State, error) {
 }
 
 func (s *Service) Log(req model.LogRequest) (model.State, error) {
-	var challenge struct{ ID int; Title, Unit string }
-	for _, c := range challenges {
-		if c.ID == req.ChallengeID {
-			challenge = struct{ ID int; Title, Unit string }{c.ID, c.Title, c.Unit}
-			break
-		}
+	challenge, err := s.db.GetChallengeByID(int64(req.ChallengeID))
+	if err != nil {
+		return model.State{}, err
 	}
-	if challenge.ID == 0 {
+	if challenge == nil {
 		return model.State{}, fmt.Errorf("unknown challenge id %d", req.ChallengeID)
 	}
 
@@ -136,6 +119,33 @@ func (s *Service) Reset() (model.State, error) {
 		return model.State{}, err
 	}
 	return s.db.GetState()
+}
+
+func (s *Service) GetChallenges() ([]model.Challenge, error) {
+	return s.db.GetChallenges()
+}
+
+func (s *Service) GetActiveRun() (*model.ChallengeRun, error) {
+	return s.db.GetActiveRun()
+}
+
+func (s *Service) StartRun(req model.StartRunRequest) (model.ChallengeRun, error) {
+	today := time.Now()
+	startDate := today.Format("2006-01-02")
+	endDate := today.AddDate(0, 0, req.DurationDays-1).Format("2006-01-02")
+	return s.db.StartChallengeRun(req.ChallengeID, startDate, endDate)
+}
+
+func (s *Service) CompleteRun(id int64) error {
+	return s.db.CompleteRun(id)
+}
+
+func (s *Service) CancelRun(id int64) error {
+	return s.db.CancelRun(id)
+}
+
+func (s *Service) GetMonthChallengeRuns(year, month int) ([]model.ChallengeRun, error) {
+	return s.db.GetMonthRuns(year, month)
 }
 
 func computeResult(unit string, p1Val, p2Val, p1Base, p2Base float64) (p1Pct, p2Pct float64, p1Pts, p2Pts int, result string) {

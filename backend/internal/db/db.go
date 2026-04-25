@@ -21,6 +21,14 @@ func Open(path string) (*DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 	conn.SetMaxOpenConns(1)
+	conn.SetMaxIdleConns(1)
+	conn.SetConnMaxLifetime(0)
+	if _, err := conn.Exec(`PRAGMA journal_mode=WAL`); err != nil {
+		return nil, fmt.Errorf("set WAL mode: %w", err)
+	}
+	if _, err := conn.Exec(`PRAGMA busy_timeout=5000`); err != nil {
+		return nil, fmt.Errorf("set busy_timeout: %w", err)
+	}
 	d := &DB{conn: conn, path: path}
 	if err := d.migrate(); err != nil {
 		return nil, err
@@ -28,135 +36,101 @@ func Open(path string) (*DB, error) {
 	return d, nil
 }
 
-func (d *DB) Close() error { return d.conn.Close() }
+func (d *DB) Close() error {
+	d.conn.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+	return d.conn.Close()
+}
 func (d *DB) Path() string  { return d.path }
 
 func (d *DB) migrate() error {
-	if _, err := d.conn.Exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`); err != nil {
-		return err
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)`,
+		`CREATE TABLE IF NOT EXISTS players (
+			id       INTEGER PRIMARY KEY,
+			name     TEXT NOT NULL,
+			color    TEXT NOT NULL,
+			initials TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS player_scores (
+			player_id INTEGER PRIMARY KEY REFERENCES players(id),
+			points    INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS history_entries (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			challenge  TEXT    NOT NULL,
+			p1_pct     REAL    NOT NULL,
+			p2_pct     REAL    NOT NULL,
+			p1_pts     INTEGER NOT NULL,
+			p2_pts     INTEGER NOT NULL,
+			result     TEXT    NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS workouts (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			icon          TEXT NOT NULL DEFAULT '',
+			name          TEXT NOT NULL,
+			group_label   TEXT NOT NULL DEFAULT '',
+			tags          TEXT NOT NULL DEFAULT '[]',
+			description   TEXT NOT NULL DEFAULT '',
+			steps         TEXT NOT NULL DEFAULT '[]',
+			sets          TEXT NOT NULL DEFAULT '',
+			unit          TEXT NOT NULL DEFAULT 'reps',
+			default_count INTEGER NOT NULL DEFAULT 10
+		)`,
+		`CREATE TABLE IF NOT EXISTS daily_logs (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			date       TEXT    NOT NULL,
+			player_id  INTEGER NOT NULL DEFAULT 1 REFERENCES players(id),
+			workout_id INTEGER REFERENCES workouts(id),
+			count      INTEGER NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS challenges (
+			id                INTEGER PRIMARY KEY AUTOINCREMENT,
+			title             TEXT NOT NULL,
+			type              TEXT NOT NULL,
+			type_label        TEXT NOT NULL,
+			description       TEXT NOT NULL DEFAULT '',
+			him_note          TEXT NOT NULL DEFAULT '',
+			her_note          TEXT NOT NULL DEFAULT '',
+			win_rule          TEXT NOT NULL DEFAULT '',
+			unit              TEXT NOT NULL DEFAULT '',
+			duration_days     INTEGER NOT NULL DEFAULT 30,
+			linked_workout_id INTEGER REFERENCES workouts(id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS challenge_runs (
+			id                INTEGER PRIMARY KEY AUTOINCREMENT,
+			challenge_id      INTEGER NOT NULL REFERENCES challenges(id),
+			start_date        TEXT NOT NULL,
+			end_date          TEXT NOT NULL,
+			linked_workout_id INTEGER REFERENCES workouts(id),
+			status            TEXT NOT NULL DEFAULT 'active',
+			created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`INSERT OR IGNORE INTO players (id, name, color, initials) VALUES (1, 'Him', '#3eb8ff', 'H')`,
+		`INSERT OR IGNORE INTO players (id, name, color, initials) VALUES (2, 'Her', '#ff6b9d', 'H')`,
+		`INSERT OR IGNORE INTO player_scores (player_id, points) VALUES (1, 0)`,
+		`INSERT OR IGNORE INTO player_scores (player_id, points) VALUES (2, 0)`,
 	}
+	for _, stmt := range stmts {
+		if _, err := d.conn.Exec(stmt); err != nil {
+			return fmt.Errorf("schema: %w", err)
+		}
+	}
+
 	var version int
 	d.conn.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_version`).Scan(&version)
-
-	if version < 2 {
-		// Drop old schema (DB confirmed empty at this migration point)
-		for _, stmt := range []string{
-			`DROP TABLE IF EXISTS scores`,
-			`DROP TABLE IF EXISTS daily_logs`,
-			`DROP TABLE IF EXISTS history_entries`,
-		} {
-			if _, err := d.conn.Exec(stmt); err != nil {
-				return err
-			}
-		}
-
-		stmts := []string{
-			`CREATE TABLE IF NOT EXISTS players (
-				id       INTEGER PRIMARY KEY,
-				name     TEXT NOT NULL,
-				color    TEXT NOT NULL,
-				initials TEXT NOT NULL
-			)`,
-			`INSERT OR IGNORE INTO players (id, name, color, initials) VALUES (1, 'Him', '#3eb8ff', 'H')`,
-			`INSERT OR IGNORE INTO players (id, name, color, initials) VALUES (2, 'Her', '#ff6b9d', 'H')`,
-
-			`CREATE TABLE IF NOT EXISTS player_scores (
-				player_id INTEGER PRIMARY KEY REFERENCES players(id),
-				points    INTEGER NOT NULL DEFAULT 0
-			)`,
-			`INSERT OR IGNORE INTO player_scores (player_id, points) VALUES (1, 0)`,
-			`INSERT OR IGNORE INTO player_scores (player_id, points) VALUES (2, 0)`,
-
-			`CREATE TABLE IF NOT EXISTS history_entries (
-				id         INTEGER PRIMARY KEY AUTOINCREMENT,
-				challenge  TEXT    NOT NULL,
-				p1_pct     REAL    NOT NULL,
-				p2_pct     REAL    NOT NULL,
-				p1_pts     INTEGER NOT NULL,
-				p2_pts     INTEGER NOT NULL,
-				result     TEXT    NOT NULL,
-				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-			)`,
-
-			`CREATE TABLE IF NOT EXISTS daily_logs (
-				id         INTEGER PRIMARY KEY AUTOINCREMENT,
-				date       TEXT    NOT NULL,
-				player_id  INTEGER NOT NULL DEFAULT 1 REFERENCES players(id),
-				action     TEXT    NOT NULL,
-				count      INTEGER NOT NULL,
-				unit       TEXT    NOT NULL DEFAULT 'reps',
-				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-			)`,
-
-			`CREATE TABLE IF NOT EXISTS workouts (
-				id          INTEGER PRIMARY KEY AUTOINCREMENT,
-				icon        TEXT NOT NULL DEFAULT '',
-				name        TEXT NOT NULL,
-				group_label TEXT NOT NULL DEFAULT '',
-				tags        TEXT NOT NULL DEFAULT '[]',
-				description TEXT NOT NULL DEFAULT '',
-				steps       TEXT NOT NULL DEFAULT '[]',
-				sets        TEXT NOT NULL DEFAULT ''
-			)`,
-
-			`CREATE TABLE IF NOT EXISTS actions (
-				id            INTEGER PRIMARY KEY AUTOINCREMENT,
-				name          TEXT    NOT NULL,
-				unit          TEXT    NOT NULL DEFAULT 'reps',
-				default_count INTEGER NOT NULL DEFAULT 10,
-				workout_id    INTEGER REFERENCES workouts(id)
-			)`,
-		}
-
-		for _, stmt := range stmts {
-			if _, err := d.conn.Exec(stmt); err != nil {
-				return fmt.Errorf("migration v2: %w", err)
-			}
-		}
-
-		if _, err := d.conn.Exec(`INSERT OR REPLACE INTO schema_version (version) VALUES (2)`); err != nil {
+	if version < 1 {
+		if _, err := d.conn.Exec(`INSERT OR REPLACE INTO schema_version (version) VALUES (1)`); err != nil {
 			return err
 		}
 	}
+	// Future migrations: if version < 2 { ...; INSERT OR REPLACE INTO schema_version VALUES (2) }
 
-	if version < 3 {
-		// Merge actions into workouts; add unit/default_count to workouts; fix daily_logs
-		stmts := []string{
-			// Add unit/default_count to workouts (safe ALTER, ignored if already present)
-			`ALTER TABLE workouts ADD COLUMN unit TEXT NOT NULL DEFAULT 'reps'`,
-			`ALTER TABLE workouts ADD COLUMN default_count INTEGER NOT NULL DEFAULT 10`,
-			// Copy values from actions table (if it exists) via workout_id FK
-			`UPDATE workouts SET
-				unit = (SELECT unit FROM actions WHERE actions.workout_id = workouts.id),
-				default_count = (SELECT default_count FROM actions WHERE actions.workout_id = workouts.id)
-			WHERE EXISTS (SELECT 1 FROM actions WHERE actions.workout_id = workouts.id)`,
-			`DROP TABLE IF EXISTS actions`,
-			// Recreate daily_logs with workout_id FK instead of action TEXT
-			`DROP TABLE IF EXISTS daily_logs`,
-			`CREATE TABLE daily_logs (
-				id         INTEGER PRIMARY KEY AUTOINCREMENT,
-				date       TEXT    NOT NULL,
-				player_id  INTEGER NOT NULL DEFAULT 1 REFERENCES players(id),
-				workout_id INTEGER REFERENCES workouts(id),
-				count      INTEGER NOT NULL,
-				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-			)`,
-		}
-		for _, stmt := range stmts {
-			if _, err := d.conn.Exec(stmt); err != nil {
-				// ALTER TABLE fails silently if column already exists
-				if stmt[:5] == "ALTER" {
-					continue
-				}
-				return fmt.Errorf("migration v3: %w", err)
-			}
-		}
-		if _, err := d.conn.Exec(`INSERT OR REPLACE INTO schema_version (version) VALUES (3)`); err != nil {
-			return err
-		}
+	if err := d.seedData(); err != nil {
+		return err
 	}
-
-	return d.seedData()
+	return d.seedChallenges()
 }
 
 func (d *DB) seedData() error {
@@ -546,4 +520,253 @@ func (d *DB) Reset() error {
 		}
 	}
 	return nil
+}
+
+// Challenges
+
+func (d *DB) seedChallenges() error {
+	var count int
+	d.conn.QueryRow(`SELECT COUNT(*) FROM challenges`).Scan(&count)
+	if count > 0 {
+		return nil
+	}
+
+	type seed struct {
+		Title             string
+		Type              string
+		TypeLabel         string
+		Desc              string
+		HimNote           string
+		HerNote           string
+		WinRule           string
+		Unit              string
+		DurationDays      int
+		LinkedWorkoutName string
+	}
+
+	seeds := []seed{
+		{
+			Title: "Liegestütz-Prozent-Rennen", Type: "improvement", TypeLabel: "% Verbesserung",
+			Desc:            "Beide testen ihre maximalen Liegestütz-Wiederholungen an Tag 1 (Ausgangswert). Nach 4 Wochen Training erneut testen. Wer sich prozentual am meisten verbessert, gewinnt.",
+			HimNote:         "Ausgangswert ca. ~30 Wdh.", HerNote: "Ausgangswert ca. ~1–3 Wdh.",
+			WinRule:         "Gewinner = höchste % Verbesserung. (z.B. 1→4 Wdh. = +300% schlägt 30→38 = +27%)",
+			Unit:            "Wdh.", DurationDays: 28, LinkedWorkoutName: "Elevated Push-Ups",
+		},
+		{
+			Title: "L-Sit Überlebenskampf", Type: "endurance", TypeLabel: "Ausdauer",
+			Desc:            "Maximalen L-Sit-Hold messen (oder Tuck Hold für Anfänger). Haltezeit wöchentlich mit dem eigenen Rekord vergleichen. Wöchentlicher Gewinner erhält den Punkt.",
+			HimNote:         "Voller L-Sit oder Planche-Lean-Version", HerNote: "Tuck Hold ist gültig — vollständig vergleichbar",
+			WinRule:         "Jede Woche: Wer den eigenen Rekord prozentual mehr übertrifft, gewinnt den Wochenpunkt.",
+			Unit:            "Sekunden", DurationDays: 28, LinkedWorkoutName: "L-Sit Hold",
+		},
+		{
+			Title: "30-Tage Liegestütz-Kalender", Type: "skill", TypeLabel: "Konstanz",
+			Desc:            "Jeden Tag für 30 Tage eine bestimmte Anzahl Liegestütze absolvieren (an jede Person angepasst). Fertige Tage im gemeinsamen Kalender markieren. Wer mehr Tage schafft, gewinnt.",
+			HimNote:         "Ziel: 10 Wdh./Tag, jede Woche um 1 steigern", HerNote: "Ziel: 2 Wdh./Tag, jede Woche um 1 steigern",
+			WinRule:         "Wer nach 30 Tagen mehr Tage abgeschlossen hat, gewinnt. Gleichstand = Bonus-Runde.",
+			Unit:            "Abgeschlossene Tage", DurationDays: 30, LinkedWorkoutName: "Elevated Push-Ups",
+		},
+		{
+			Title: "Dip-Duell", Type: "improvement", TypeLabel: "% Verbesserung",
+			Desc:            "Maximale Dips testen (mit Fußunterstützung für Anfänger erlaubt). Ausgangswert aufzeichnen. Nach 3 Wochen erneut testen.",
+			HimNote:         "Volle hängende Dips", HerNote: "Fußgestützte Dips an der niedrigen Stange — beide werden gezählt",
+			WinRule:         "Höchste % Verbesserung vom persönlichen Ausgangswert gewinnt.",
+			Unit:            "Wdh.", DurationDays: 21, LinkedWorkoutName: "Parallette Dips",
+		},
+		{
+			Title: "Der Planken-Showdown", Type: "endurance", TypeLabel: "Ausdauer",
+			Desc:            "Maximaler Planken-Hold — aber auf den Parallettes (erhöht). Der neutrale Griff macht es schwerer als auf dem Boden. Beide halten gleichzeitig für extra Spannung.",
+			HimNote:         "Standard Parallette-Planke", HerNote: "Gleich — diese Übung ist von Natur aus fairer",
+			WinRule:         "Längste Haltezeit gewinnt. Bei weniger als 5 Sekunden Unterschied: Unentschieden, beide erhalten Punkte.",
+			Unit:            "Sekunden", DurationDays: 7, LinkedWorkoutName: "Support Hold",
+		},
+		{
+			Title: "Speed-Circuit-Sprint", Type: "speed", TypeLabel: "Schnelligkeit",
+			Desc:    "5 Liegestütze + 5 Dips + 10s Support Hold so schnell wie möglich absolvieren. Jede Person in der eigenen Skalierung. Zeit wird mit dem persönlichen Ausgangswert verglichen.",
+			HimNote: "Volle Wiederholungen, ohne Unterstützung", HerNote: "Skalierte Wdh. (z.B. 3+3 statt 5+5) — eigene Skalierung festlegen",
+			WinRule: "Größte prozentuale Zeitverkürzung vom Ausgangswert gewinnt. Macht Spaß zuzuschauen!",
+			Unit:    "Sekunden (weniger = besser)", DurationDays: 28,
+		},
+		{
+			Title: "Wöchentlicher Skill-Unlock", Type: "skill", TypeLabel: "Technik",
+			Desc:    "Jede Woche versuchen beide, eine neue Übung aus der Workout-Liste zu erlernen. Wer sie zuerst 5 Sekunden sauber hält, gewinnt die Woche.",
+			HimNote: "Nächste schwierigere Übung über dem aktuellen Level anstreben", HerNote: "Gleiche Regel — Übung wird gemeinsam gewählt",
+			WinRule: "Wer die Übung zuerst 5 saubere Sekunden hält, gewinnt 3 Punkte. Gleiche Woche = Unentschieden.",
+			Unit:    "Übung erreicht (ja/nein)", DurationDays: 7,
+		},
+		{
+			Title: "Paar-EMOM", Type: "endurance", TypeLabel: "Ausdauer",
+			Desc:    "Every Minute On the Minute — Wiederholungen absolvieren, Rest der Minute erholen. Mit einer für beide machbaren Zahl starten. Jede Woche 1 Wdh. mehr. Wer am längsten durchhält, gewinnt.",
+			HimNote: "Start mit 8 Wdh./Min.", HerNote: "Start mit 2 Wdh./Min. — steigert sich identisch in der Schwierigkeit",
+			WinRule: "Wer zuletzt ohne Fehler durchhält, gewinnt. Wird über Wochen verfolgt.",
+			Unit:    "Überlebte Runden", DurationDays: 28,
+		},
+	}
+
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, s := range seeds {
+		if s.LinkedWorkoutName != "" {
+			if _, err := tx.Exec(
+				`INSERT INTO challenges (title, type, type_label, description, him_note, her_note, win_rule, unit, duration_days, linked_workout_id)
+				 VALUES (?,?,?,?,?,?,?,?,?, (SELECT id FROM workouts WHERE name=?))`,
+				s.Title, s.Type, s.TypeLabel, s.Desc, s.HimNote, s.HerNote, s.WinRule, s.Unit, s.DurationDays, s.LinkedWorkoutName,
+			); err != nil {
+				return fmt.Errorf("seed challenge %q: %w", s.Title, err)
+			}
+		} else {
+			if _, err := tx.Exec(
+				`INSERT INTO challenges (title, type, type_label, description, him_note, her_note, win_rule, unit, duration_days) VALUES (?,?,?,?,?,?,?,?,?)`,
+				s.Title, s.Type, s.TypeLabel, s.Desc, s.HimNote, s.HerNote, s.WinRule, s.Unit, s.DurationDays,
+			); err != nil {
+				return fmt.Errorf("seed challenge %q: %w", s.Title, err)
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+func (d *DB) GetChallengeByID(id int64) (*model.Challenge, error) {
+	var c model.Challenge
+	var linkedWorkoutID sql.NullInt64
+	err := d.conn.QueryRow(
+		`SELECT id, title, type, type_label, description, him_note, her_note, win_rule, unit, duration_days, linked_workout_id FROM challenges WHERE id=?`, id,
+	).Scan(&c.ID, &c.Title, &c.Type, &c.TypeLabel, &c.Desc, &c.HimNote, &c.HerNote, &c.WinRule, &c.Unit, &c.DurationDays, &linkedWorkoutID)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if linkedWorkoutID.Valid {
+		lid := linkedWorkoutID.Int64
+		c.LinkedWorkoutID = &lid
+	}
+	return &c, nil
+}
+
+func (d *DB) GetChallenges() ([]model.Challenge, error) {
+	rows, err := d.conn.Query(
+		`SELECT id, title, type, type_label, description, him_note, her_note, win_rule, unit, duration_days, linked_workout_id FROM challenges ORDER BY id`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cs []model.Challenge
+	for rows.Next() {
+		var c model.Challenge
+		var linkedWorkoutID sql.NullInt64
+		if err := rows.Scan(&c.ID, &c.Title, &c.Type, &c.TypeLabel, &c.Desc, &c.HimNote, &c.HerNote, &c.WinRule, &c.Unit, &c.DurationDays, &linkedWorkoutID); err != nil {
+			return nil, err
+		}
+		if linkedWorkoutID.Valid {
+			id := linkedWorkoutID.Int64
+			c.LinkedWorkoutID = &id
+		}
+		cs = append(cs, c)
+	}
+	if cs == nil {
+		cs = []model.Challenge{}
+	}
+	return cs, rows.Err()
+}
+
+const runSelect = `
+	SELECT cr.id, cr.challenge_id, c.title, cr.start_date, cr.end_date, cr.linked_workout_id, cr.status
+	FROM challenge_runs cr JOIN challenges c ON cr.challenge_id = c.id`
+
+func scanRun(scan func(...any) error) (model.ChallengeRun, error) {
+	var run model.ChallengeRun
+	var linkedWorkoutID sql.NullInt64
+	if err := scan(&run.ID, &run.ChallengeID, &run.ChallengeTitle, &run.StartDate, &run.EndDate, &linkedWorkoutID, &run.Status); err != nil {
+		return run, err
+	}
+	if linkedWorkoutID.Valid {
+		id := linkedWorkoutID.Int64
+		run.LinkedWorkoutID = &id
+	}
+	return run, nil
+}
+
+func (d *DB) GetActiveRun() (*model.ChallengeRun, error) {
+	row := d.conn.QueryRow(runSelect + ` WHERE cr.status = 'active' LIMIT 1`)
+	run, err := scanRun(row.Scan)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &run, nil
+}
+
+func (d *DB) StartChallengeRun(challengeID int64, startDate, endDate string) (model.ChallengeRun, error) {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return model.ChallengeRun{}, err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`UPDATE challenge_runs SET status='cancelled' WHERE status='active'`); err != nil {
+		return model.ChallengeRun{}, err
+	}
+
+	res, err := tx.Exec(
+		`INSERT INTO challenge_runs (challenge_id, start_date, end_date, linked_workout_id, status)
+		 SELECT ?, ?, ?, linked_workout_id, 'active' FROM challenges WHERE id=?`,
+		challengeID, startDate, endDate, challengeID,
+	)
+	if err != nil {
+		return model.ChallengeRun{}, err
+	}
+	id, _ := res.LastInsertId()
+
+	if err := tx.Commit(); err != nil {
+		return model.ChallengeRun{}, err
+	}
+
+	row := d.conn.QueryRow(runSelect+` WHERE cr.id=?`, id)
+	return scanRun(row.Scan)
+}
+
+func (d *DB) CompleteRun(id int64) error {
+	_, err := d.conn.Exec(`UPDATE challenge_runs SET status='completed' WHERE id=?`, id)
+	return err
+}
+
+func (d *DB) CancelRun(id int64) error {
+	_, err := d.conn.Exec(`UPDATE challenge_runs SET status='cancelled' WHERE id=?`, id)
+	return err
+}
+
+func (d *DB) GetMonthRuns(year, month int) ([]model.ChallengeRun, error) {
+	monthStart := fmt.Sprintf("%04d-%02d-01", year, month)
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC).Day()
+	monthEnd := fmt.Sprintf("%04d-%02d-%02d", year, month, lastDay)
+
+	rows, err := d.conn.Query(
+		runSelect+` WHERE cr.status != 'cancelled' AND cr.start_date <= ? AND cr.end_date >= ? ORDER BY cr.start_date`,
+		monthEnd, monthStart,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var runs []model.ChallengeRun
+	for rows.Next() {
+		run, err := scanRun(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	if runs == nil {
+		runs = []model.ChallengeRun{}
+	}
+	return runs, rows.Err()
 }

@@ -6,12 +6,36 @@ import TipsTab from './components/TipsTab'
 import DailyTab from './components/DailyTab'
 import SettingsTab from './components/SettingsTab'
 import EditWorkoutsTab from './components/EditWorkoutsTab'
+import ChallengeOverlay from './components/ChallengeOverlay'
 
 export interface Player {
   id: number
   name: string
   color: string
   initials: string
+}
+
+export interface Challenge {
+  id: number
+  title: string
+  type: string
+  typeLabel: string
+  desc: string
+  himNote: string
+  herNote: string
+  winRule: string
+  unit: string
+  durationDays: number
+}
+
+export interface ChallengeRun {
+  id: number
+  challengeId: number
+  challengeTitle: string
+  startDate: string
+  endDate: string
+  linkedWorkoutId: number | null
+  status: 'active' | 'completed' | 'cancelled'
 }
 
 export interface PlayerScore {
@@ -69,6 +93,7 @@ export default function App() {
   const { route, params, navigate } = useHash()
   const [state, setState] = useState<State>({ scores: [], history: [] })
   const [players, setPlayers] = useState<Player[]>([])
+  const [activeRun, setActiveRun] = useState<ChallengeRun | null>(null)
 
   const loadPlayers = () => {
     fetch('/api/players')
@@ -77,8 +102,16 @@ export default function App() {
       .catch(console.error)
   }
 
+  const loadActiveRun = () => {
+    fetch('/api/challenges/active')
+      .then(r => r.json())
+      .then((data: ChallengeRun | null) => setActiveRun(data ?? null))
+      .catch(console.error)
+  }
+
   useEffect(() => {
     loadPlayers()
+    loadActiveRun()
     fetch('/api/state')
       .then(r => r.json())
       .then((data: Partial<State>) => { if (data?.scores != null) setState(data as State) })
@@ -147,13 +180,13 @@ export default function App() {
             <WorkoutsTab openWorkoutId={openWorkoutId} onManage={() => navigate('edit-workouts')} />
           </section>
           <section className={`section${route === 'challenges' ? ' active' : ''}`}>
-            <ChallengesTab players={players} />
+            <ChallengesTab players={players} activeRun={activeRun} onRunChange={loadActiveRun} />
           </section>
           <section className={`section${route === 'tracker' ? ' active' : ''}`}>
             <TrackerTab state={state} players={players} onLog={log} onReset={reset} />
           </section>
           <section className={`section${route === 'daily' ? ' active' : ''}`}>
-            <DailyTab players={players} onNavigate={navigate} />
+            <DailyTab players={players} activeRun={activeRun} onNavigate={navigate} />
           </section>
           <section className={`section${route === 'tips' ? ' active' : ''}`}>
             <TipsTab />
@@ -166,6 +199,20 @@ export default function App() {
           Gemacht für zwei 💛
         </div>
       )}
+
+      <ChallengeOverlay
+        run={activeRun}
+        onComplete={async () => {
+          if (!activeRun) return
+          await fetch(`/api/challenges/runs/${activeRun.id}/complete`, { method: 'PUT' })
+          loadActiveRun()
+        }}
+        onCancel={async () => {
+          if (!activeRun) return
+          await fetch(`/api/challenges/runs/${activeRun.id}`, { method: 'DELETE' })
+          loadActiveRun()
+        }}
+      />
     </>
   )
 }

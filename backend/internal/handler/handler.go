@@ -212,6 +212,84 @@ func (h *Handler) GetMonthLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, result)
 }
 
+// Challenges
+
+func (h *Handler) GetChallenges(w http.ResponseWriter, r *http.Request) {
+	cs, err := h.svc.GetChallenges()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, cs)
+}
+
+func (h *Handler) GetActiveRun(w http.ResponseWriter, r *http.Request) {
+	run, err := h.svc.GetActiveRun()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, run)
+}
+
+func (h *Handler) StartRun(w http.ResponseWriter, r *http.Request) {
+	var req model.StartRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	run, err := h.svc.StartRun(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, run)
+}
+
+func (h *Handler) CompleteRun(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.CompleteRun(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) CancelRun(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.CancelRun(id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetMonthChallengeRuns(w http.ResponseWriter, r *http.Request) {
+	yearStr := r.URL.Query().Get("year")
+	monthStr := r.URL.Query().Get("month")
+	year, err1 := strconv.Atoi(yearStr)
+	month, err2 := strconv.Atoi(monthStr)
+	if err1 != nil || err2 != nil || month < 1 || month > 12 {
+		http.Error(w, "year and month query params required", http.StatusBadRequest)
+		return
+	}
+	runs, err := h.svc.GetMonthChallengeRuns(year, month)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, runs)
+}
+
 // DB export
 
 func (h *Handler) ExportDB(w http.ResponseWriter, r *http.Request) {

@@ -73,3 +73,32 @@ type DailyLogRequest struct {
 	WorkoutID int64  `json:"workoutId"`
 	Count     int    `json:"count"`
 }
+
+type Challenge struct {
+	ID              int64  `json:"id"`
+	Title           string `json:"title"`
+	Type            string `json:"type"`
+	TypeLabel       string `json:"typeLabel"`
+	Desc            string `json:"desc"`
+	HimNote         string `json:"himNote"`
+	HerNote         string `json:"herNote"`
+	WinRule         string `json:"winRule"`
+	Unit            string `json:"unit"`
+	DurationDays    int    `json:"durationDays"`
+	LinkedWorkoutID *int64 `json:"linkedWorkoutId"`
+}
+
+type ChallengeRun struct {
+	ID              int64  `json:"id"`
+	ChallengeID     int64  `json:"challengeId"`
+	ChallengeTitle  string `json:"challengeTitle"`
+	StartDate       string `json:"startDate"`
+	EndDate         string `json:"endDate"`
+	LinkedWorkoutID *int64 `json:"linkedWorkoutId"`
+	Status          string `json:"status"`
+}
+
+type StartRunRequest struct {
+	ChallengeID  int64 `json:"challengeId"`
+	DurationDays int   `json:"durationDays"`
+}

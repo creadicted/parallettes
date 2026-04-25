@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Player } from '../app'
+import type { Player, ChallengeRun } from '../app'
 
 interface Workout {
   id: number
@@ -21,6 +21,7 @@ interface DailyLog {
 
 interface Props {
   players: Player[]
+  activeRun: ChallengeRun | null
   onNavigate: (hash: string) => void
 }
 
@@ -52,7 +53,7 @@ function buildStrip(centerDateStr: string) {
   })
 }
 
-export default function DailyTab({ players, onNavigate }: Props) {
+export default function DailyTab({ players, activeRun, onNavigate }: Props) {
   const today = new Date()
   const todayStr = toDateStr(today)
 
@@ -65,6 +66,7 @@ export default function DailyTab({ players, onNavigate }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [counts, setCounts] = useState<Record<number, number>>({})
   const [monthLogs, setMonthLogs] = useState<Record<string, number[]>>({})
+  const [monthRuns, setMonthRuns] = useState<ChallengeRun[]>([])
 
   useEffect(() => {
     fetch('/api/workouts')
@@ -89,6 +91,10 @@ export default function DailyTab({ players, onNavigate }: Props) {
     fetch(`/api/daily/month?year=${year}&month=${month + 1}`)
       .then(r => r.json())
       .then((data: Record<string, number[]>) => { if (data && typeof data === 'object') setMonthLogs(data) })
+      .catch(console.error)
+    fetch(`/api/challenges/month?year=${year}&month=${month + 1}`)
+      .then(r => r.json())
+      .then((data: ChallengeRun[]) => { if (Array.isArray(data)) setMonthRuns(data) })
       .catch(console.error)
   }
 
@@ -138,6 +144,9 @@ export default function DailyTab({ players, onNavigate }: Props) {
     }
   }
 
+  const getRunForDay = (dateStr: string) =>
+    monthRuns.find(r => r.startDate <= dateStr && r.endDate >= dateStr)
+
   const cells = buildCalendarCells(viewYear, viewMonth)
   const stripDays = buildStrip(selectedDate)
   const selectedDisplay = new Date(selectedDate + 'T00:00:00').toLocaleDateString('de-DE', {
@@ -176,10 +185,12 @@ export default function DailyTab({ players, onNavigate }: Props) {
                 const isToday = dateStr === todayStr
                 const isSelected = dateStr === selectedDate
                 const dotsForDay = monthLogs[dateStr] ?? []
+                const runForDay = getRunForDay(dateStr)
+                const challengeCls = runForDay ? ` challenge-${runForDay.status}` : ''
                 return (
                   <div
                     key={i}
-                    className={`cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
+                    className={`cal-day${challengeCls}${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`}
                     onClick={() => setSelectedDate(toDateStr(new Date(viewYear, viewMonth, day)))}
                   >
                     <span>{day}</span>
@@ -285,26 +296,30 @@ export default function DailyTab({ players, onNavigate }: Props) {
           {/* Split: action list | log entries */}
           <div className="eintragen-split">
             <div className="action-list">
-              {workouts.map(w => (
-                <div
-                  key={w.id}
-                  className={`action-item${selectedPlayer === 1 ? ' him' : ' her'}`}
-                  onClick={() => logAction(w, counts[w.id] ?? w.defaultCount)}
-                >
-                  <div className="action-counter" onClick={e => e.stopPropagation()}>
-                    <button className="counter-btn" onClick={() => adjustCount(w.id, -1)}>−</button>
-                    <span className="counter-val">{counts[w.id] ?? w.defaultCount}</span>
-                    <button className="counter-btn" onClick={() => adjustCount(w.id, +1)}>+</button>
+              {workouts.map(w => {
+                const isLinked = activeRun?.linkedWorkoutId === w.id
+                return (
+                  <div
+                    key={w.id}
+                    className={`action-item${selectedPlayer === 1 ? ' him' : ' her'}${isLinked ? ' challenge-linked' : ''}`}
+                    onClick={() => logAction(w, counts[w.id] ?? w.defaultCount)}
+                  >
+                    <div className="action-counter" onClick={e => e.stopPropagation()}>
+                      <button className="counter-btn" onClick={() => adjustCount(w.id, -1)}>−</button>
+                      <span className="counter-val">{counts[w.id] ?? w.defaultCount}</span>
+                      <button className="counter-btn" onClick={() => adjustCount(w.id, +1)}>+</button>
+                    </div>
+                    <span className="action-name">{w.name}</span>
+                    {isLinked && <span className="challenge-badge">🏆</span>}
+                    <span className="action-unit">{w.unit}</span>
+                    <button
+                      className="action-info-btn"
+                      onClick={e => { e.stopPropagation(); onNavigate(`workouts?workout=${w.id}`) }}
+                      title="Workout-Beschreibung anzeigen"
+                    >ⓘ</button>
                   </div>
-                  <span className="action-name">{w.name}</span>
-                  <span className="action-unit">{w.unit}</span>
-                  <button
-                    className="action-info-btn"
-                    onClick={e => { e.stopPropagation(); onNavigate(`workouts?workout=${w.id}`) }}
-                    title="Workout-Beschreibung anzeigen"
-                  >ⓘ</button>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="eintragen-log">

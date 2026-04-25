@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/konradk/parallettes/internal/db"
 	"github.com/konradk/parallettes/internal/handler"
@@ -33,7 +35,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
-	defer database.Close()
 
 	svc := service.New(database)
 	h := handler.New(svc, dbPath)
@@ -61,7 +62,15 @@ func main() {
 	mux.HandleFunc("POST /api/daily", h.AddDailyLog)
 	mux.HandleFunc("DELETE /api/daily/{id}", h.DeleteDailyLog)
 
-	// State / challenges
+	// Challenges
+	mux.HandleFunc("GET /api/challenges", h.GetChallenges)
+	mux.HandleFunc("GET /api/challenges/active", h.GetActiveRun)
+	mux.HandleFunc("GET /api/challenges/month", h.GetMonthChallengeRuns)
+	mux.HandleFunc("POST /api/challenges/runs", h.StartRun)
+	mux.HandleFunc("PUT /api/challenges/runs/{id}/complete", h.CompleteRun)
+	mux.HandleFunc("DELETE /api/challenges/runs/{id}", h.CancelRun)
+
+	// State / tracker
 	mux.HandleFunc("GET /api/state", h.GetState)
 	mux.HandleFunc("POST /api/log", h.LogResult)
 	mux.HandleFunc("DELETE /api/state", h.ResetState)
@@ -70,6 +79,16 @@ func main() {
 	mux.HandleFunc("GET /api/db/export", h.ExportDB)
 
 	mux.Handle("/", http.FileServer(http.FS(staticSub)))
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-quit
+		if err := database.Close(); err != nil {
+			log.Printf("db close: %v", err)
+		}
+		os.Exit(0)
+	}()
 
 	log.Printf("listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, corsMiddleware(mux)); err != nil {
